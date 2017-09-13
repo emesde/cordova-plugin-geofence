@@ -406,21 +406,27 @@ class GeoNotificationManager : NSObject, CLLocationManagerDelegate {
         }
     }
 
-    func sendTransitionToServer(geo: JSON) {
+    func sendTransitionToServer(_ geo: JSON) {
         log("Sending transition info to server")
 
-        let url = NSURL(string: "http://localhost:9004")!
-        let session = NSURLSession.sharedSession()
-        let request = NSMutableURLRequest(URL: url)
+        let urlString = geo["serverURL"].string
+        let url = URL(string: urlString!)!
+        let session = URLSession.shared
+        var request = URLRequest(url: url)
 
         do {
-            request.HTTPMethod = "POST"
+            request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.HTTPBody = geo["notification"]["data"]
-
-            let task = session.dataTaskWithRequest(request, completionHandler: { (_, response, error) -> Void in
-            print("Got response \(response) with error \(error)")
-            print("Done.")
+            let jsonData: [String : JSON] = geo["notification"]["data"].dictionary!
+            
+            var postData:[String : String] = [:]
+            jsonData.forEach { (k, v) in postData[k] = v.rawString() }
+            
+            request.httpBody = try? JSONSerialization.data(withJSONObject: postData)
+            
+            let task = session.dataTask(with: request, completionHandler: { (_, response, error) -> Void in
+                print("Response from server: \(response), errors: \(error)")
+            })
 
             task.resume()
 
